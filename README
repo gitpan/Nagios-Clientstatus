@@ -1,6 +1,7 @@
 pod2text Nagios::Clientstatus.pm > README
 
-If this is still here it means the programmer was too lazy to create the readme file.
+This module is for helping to write new Nagios-servicecheck-programs
+without hassle. It's all pure perl, should work everywhere.
 
 You can create it now by using the command shown above from this directory.
 

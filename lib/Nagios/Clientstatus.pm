@@ -6,19 +6,16 @@ use Data::Dumper;
 use Log::Log4perl;
 use Exporter;
 
-our $VERSION = "0.04";
-
 BEGIN {
     use Exporter ();
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-    $VERSION     = '0.01';
-    @ISA         = qw(Exporter);
-    #Give a hoot don't pollute, do not export more than needed by default
+    $VERSION = '0.05';
+    @ISA     = qw(Exporter);
+
     @EXPORT      = qw();
     @EXPORT_OK   = qw();
     %EXPORT_TAGS = ();
 }
-
 
 =head1 NAME
 
@@ -82,9 +79,22 @@ Nagios::Clientstatus - Framework for Nagios check-service programs
         print "$0 --critical=40 --warning=35"
           . " --hostname=server1.zdf --sensor_nr=4";
 
-        # When supplying help you should exit
-        exit;
+        # When supplying help you should exit, use class-method
+        # because we don't have an object
+        exit Nagios::Clientstatus::exitvalue( 'unknown' );
     }
+
+    sub get_temperature_of_sensor {
+        my(%args) = @_;
+        print "You should supply something useful here.\n";
+        printf "Hostname: %s, sensor: %s\n", 
+            $args{hostname}, $args{sensor_nr};
+        print "Please enter a temperature: ";
+        my $temperature = <STDIN>;
+        chomp $temperature;
+        return $temperature;
+
+    };
 
 
 =head1 DESCRIPTION
@@ -117,16 +127,20 @@ Usage:
 
 sub new {
     my ( $class, %args ) = @_;
-    my $new_object = bless ({
-        help_subref    => \&help_example,
-        version        => $args{version},
-        mandatory_args => [],
-        given_args     => {},
-        dont_check_commandline_args => 0,
-    }, ref($class) || $class);
- 
-    if (exists $args{dont_check_commandline_args} ) {
-	$new_object->{dont_check_commandline_args} = $args{dont_check_commandline_args};
+    my $new_object = bless(
+        {
+            help_subref                 => \&help_example,
+            version                     => $args{version},
+            mandatory_args              => [],
+            given_args                  => {},
+            dont_check_commandline_args => 0,
+        },
+        ref($class) || $class
+    );
+
+    if ( exists $args{dont_check_commandline_args} ) {
+        $new_object->{dont_check_commandline_args} =
+          $args{dont_check_commandline_args};
     }
 
     # help_subref
@@ -164,38 +178,39 @@ sub _logger {
 }
 
 sub _dont_check_commandline_args {
+
     # shall any commandline-arg be checked by Getopt::Long?
     shift->{dont_check_commandline_args};
 }
 
-=head2_set_mandatory_args
-
-Remind arguments which user must supply when calling the program.
-Can be called several times.
-
-=cut
+#=head2_set_mandatory_args
+#
+#Remind arguments which user must supply when calling the program.
+#Can be called several times.
+#
+#=cut
 
 sub _set_mandatory_args {
     my ( $self, @args ) = @_;
     push @{ $self->{mandatory_args} }, @args;
 }
 
-=head2 _get_mandatory_args
-
-Which args MUST be given to the programm? Each argument must have a value, too.
-
-=cut
+#=head2 _get_mandatory_args
+#
+#Which args MUST be given to the programm? Each argument must have a value, too.
+#
+#=cut
 
 sub _get_mandatory_args {
     my $self = shift;
     @{ $self->{mandatory_args} };
 }
 
-=head2 _set_given_args
-
-Which arguments where given to the program?
-
-=cut
+#=head2 _set_given_args
+#
+#Which arguments where given to the program?
+#
+#=cut
 
 sub _set_given_args {
     my ( $self, $name, $value ) = @_;
@@ -216,12 +231,12 @@ sub get_given_arg {
       : undef;
 }
 
-=head2 _check_commandline_args
-
-There are arguments which must exist when calling a Nagios-checker.
-warning|critcal are mandatory, other mandatory were given by new.
-
-=cut
+#=head2 _check_commandline_args
+#
+#There are arguments which must exist when calling a Nagios-checker.
+#warning|critcal are mandatory, other mandatory were given by new.
+#
+#=cut
 
 sub _check_commandline_args {
     my $self   = shift;
@@ -263,7 +278,7 @@ sub _check_commandline_args {
         \%got_this_option,
 
         # all possible options are here:
-        %getopt_long_arg,
+        keys %getopt_long_arg,
     );
 
     # Now all arguments given to the program are in %got_this_option
@@ -313,8 +328,9 @@ Returnvalue can be a string of these:
 
 sub exitvalue {
     my $first_arg = shift;
+
     # Class-method or object-method?
-    my $status = ref($first_arg) ? shift : $first_arg;
+    my $status = ref($first_arg) ? shift: $first_arg;
 
     $status = uc $status;
     my %nagios_returnvalue = (
@@ -359,19 +375,6 @@ EOUSAGE
 sub _exit {
     exit;
 }
-
-
-
-
-
-
-=head1 BUGS
-
-
-
-=head1 SUPPORT
-
-
 
 =head1 AUTHOR
 

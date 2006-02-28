@@ -10,7 +10,7 @@ WriteMakefile(
     ABSTRACT     => 'Framework for Nagios check-service programs',
     PREREQ_PM    => {
                      'Test::Simple' => 0.44,
-                     'Getopt::Long' => undef,
+                     'Getopt::Long' => 2.34,
                      'Data::Dumper' => undef,
                      'Log::Log4perl' => undef,
                     },
