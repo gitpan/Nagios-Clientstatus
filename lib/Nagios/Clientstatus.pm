@@ -9,7 +9,7 @@ use Exporter;
 BEGIN {
     use Exporter ();
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-    $VERSION = '0.05';
+    $VERSION = '0.06';
     @ISA     = qw(Exporter);
 
     @EXPORT      = qw();
@@ -35,7 +35,8 @@ Nagios::Clientstatus - Framework for Nagios check-service programs
     my $ncli    = Nagios::Clientstatus->new(
         help_subref    => \&help,
         version        => $version,
-        dont_check_commandline_args => 0, # default
+        # default is that the module checks commandline
+        dont_check_commandline_args => 0,  # default
         mandatory_args => [ "hostname", "sensor_nr", "critical", "warning" ],
     );
 
@@ -120,7 +121,9 @@ Usage:
         version => $version,
         dont_check_commandline_args => 0, # default
         # mandatory_args is optional, maybe you don't need any
-        mandatory_args => [ "url" ],
+        mandatory_args => [ 'url' ],
+        # optional_args is optional, maybe you don't need any
+        optional_args => [ 'carsize' ],
     );
 
 =cut
@@ -132,6 +135,12 @@ sub new {
             help_subref                 => \&help_example,
             version                     => $args{version},
             mandatory_args              => [],
+            # help, version, debug: but no arguments here
+            # like --help=specialvalue, only --help
+            optional_default_args       => [],
+            # more optional values, all must have a value
+            # like --carsize=medium
+            optional_additional_args    => [],
             given_args                  => {},
             dont_check_commandline_args => 0,
         },
@@ -157,6 +166,21 @@ sub new {
         die $msg;
     }
     $new_object->{help_subref} = $args{help_subref};
+
+    # which optional args could be at the commandline?
+    # The usual ones
+    $new_object->{optional_default_args} = [ $new_object->_get_optional_default_args ];
+
+    # The other one the user wants
+    # These arguments must be supplied like this:
+    # --carsize=medium, not valid: --carsize
+    if (   ( exists $args{optional_args} )
+        && ( ref $args{optional_args} eq "ARRAY" ) )
+    {
+        foreach my $optarg ( @{$args{optional_args}} ) {
+            push @{$new_object->{optional_additional_args}}, $optarg;
+        } 
+    }
 
     # are there mandatory arguments?
     if (   ( exists $args{mandatory_args} )
@@ -220,7 +244,29 @@ sub _set_given_args {
 =head2 get_given_arg
 
 Object-creator can ask for the value of an argument
-given to the program.
+given to the program. This can be a mandatory or
+an optional argument. Not given optional arguments
+return undef.
+
+When you create the object like this:
+
+    my $ncli = Nagios::Clientstatus->new(
+        help_subref => \&help,
+        version => $version,
+        mandatory_args => [ 'url' ],
+        optional_args => [ 'carsize' ],
+    );
+
+If program is called: checkme --url=xx --carsize=medium
+
+    # $value -> 'medium'
+    $value = $nc->get_given_arg('carsize');
+    
+    # $value -> 'xx'
+    $value = $nc->get_given_arg('url');
+
+    # $value -> undef
+    $value = $nc->get_given_arg('carpoolnotgiven');
 
 =cut
 
@@ -252,18 +298,21 @@ sub _check_commandline_args {
     }
 
     # Build up the argument hash for Getopt::Long
-    my @optional_args = ( "version", "help", "debug" );
-
-    my @mandatory_args = $self->_get_mandatory_args;
 
     # Build the hash for Getopt::Long
-    foreach (@optional_args) {
+    foreach ( $self->_get_optional_default_args ) {
 
         # Getopt::Long wants a ref to a scalar where value is stored in
         $getopt_long_arg{$_} = $got_this_option{$_};
     }
 
-    foreach (@mandatory_args) {
+    # Maybe there are optional args supplied by new
+    # Must be all like: --carsize=medium (with value)
+    foreach ($self->_get_optional_additional_args) {
+        $getopt_long_arg{"$_=s"} = $got_this_option{$_};
+    }
+
+    foreach ( $self->_get_mandatory_args ) {
 
         # Tell Getopt::Long that there must be an argument
         # Getopt::Long wants a ref to a scalar where value is stored in
@@ -367,6 +416,24 @@ $0 --warning 60 \\
 
 Tell the user what this programm does
 EOUSAGE
+}
+
+sub _get_optional_default_args {
+    shift;
+    qw{version help debug};
+}
+
+#=head2 _get_optional_additional_args
+#
+#Get a list of args which could be given to the program.
+#These are the optional args given in new, but not the 
+#default optional args 'help','debug','version'
+#
+#=cut
+
+sub _get_optional_additional_args {
+    my $self = shift;
+    @{$self->{optional_additional_args}};
 }
 
 # for testing only, I can overwrite exit
